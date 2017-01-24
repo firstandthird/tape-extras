@@ -20,7 +20,7 @@ const test = tapeExtras(tape, {
     const server = new Server();
     done(null, server);
   },
-  beforeEach(done) {
+  beforeEach(server, done) {
     const db = new Db();
     done(null, db);
   }
