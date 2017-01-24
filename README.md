@@ -33,6 +33,12 @@ const test = tapeExtras(tape, {
 });
 
 test('this is some test', (t, server, db) => {
+  t.equal(true, true, 'true is true');
+  t.end();
+});
+
+test('this is some test 2', (t, server, db) => {
+  t.equal(false, false, 'false is false');
   t.end();
 });
 ```
