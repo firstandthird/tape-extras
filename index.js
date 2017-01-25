@@ -3,28 +3,24 @@ const async = require('async');
 
 module.exports = (tape, events) => {
   let beforeCalled = false;
-  let previousResult = undefined;
+  let beforeResult = undefined;
   let outstandingTestCounter = 0;
   const callTest = (testDescription, testMethod) => {
     outstandingTestCounter++;
     async.autoInject({
       // handle before:
       before(done) {
-        if (!events.before) {
-          return done();
+        if (!events.before || beforeCalled) {
+          return done(null, beforeResult);
         }
-        // if before hasn't been called before:
-        if (!beforeCalled) {
-          return events.before((err, result) => {
-            if (err) {
-              return done(err);
-            }
-            beforeCalled = true;
-            previousResult = result;
-            done(null, previousResult);
-          });
-        }
-        return done(null, previousResult);
+        return events.before((err, result) => {
+          if (err) {
+            return done(err);
+          }
+          beforeCalled = true;
+          beforeResult = result;
+          done(null, beforeResult);
+        });
       },
       // handle beforeEach:
       beforeEach(before, done) {

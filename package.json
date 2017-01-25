@@ -18,14 +18,14 @@
   },
   "license": "MIT",
   "dependencies": {
-    "async": "^2.1.4",
-    "tape": "^4.6.3"
+    "async": "^2.1.4"
   },
   "eslintConfig": {
       "extends": "firstandthird"
   },
   "devDependencies": {
     "chai": "^3.5.0",
+    "tape": "^4.6.3",
     "eslint": "^3.9.1",
     "eslint-config-firstandthird": "^3.0.2",
     "eslint-plugin-import": "^2.1.0",
