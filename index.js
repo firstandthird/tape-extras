@@ -3,7 +3,7 @@ const async = require('async');
 
 module.exports = (tape, events) => {
   let beforeCalled = false;
-  let beforeResult = undefined;
+  let previousResult = undefined;
   let outstandingTestCounter = 0;
   const callTest = (testDescription, testMethod) => {
     outstandingTestCounter++;
@@ -18,11 +18,11 @@ module.exports = (tape, events) => {
                 return done(err);
               }
               beforeCalled = true;
-              beforeResult = result;
-              done(null, beforeResult);
+              previousResult = result;
+              done(null, previousResult);
             });
           }
-          return done(null, beforeResult);
+          return done(null, previousResult);
         }
         return done();
       },
@@ -42,8 +42,10 @@ module.exports = (tape, events) => {
         // set up 'after' event:
         if (events.after) {
           tape.onFinish(() => {
+            // 'after' only fires after the last outstanding test is deducted:
             outstandingTestCounter--;
             if (outstandingTestCounter === 0) {
+              // set up args and call it:
               const args = [];
               if (events.before) {
                 args.push(before);
