@@ -21,13 +21,15 @@
     "async": "^2.1.4",
     "tape": "^4.6.3"
   },
+  "eslintConfig": {
+      "extends": "firstandthird"
+  },
   "devDependencies": {
     "chai": "^3.5.0",
     "eslint": "^3.9.1",
     "eslint-config-firstandthird": "^3.0.2",
     "eslint-plugin-import": "^2.1.0",
     "freshy": "^1.0.2",
-    "mocha": "^3.2.0",
-    "tap-spec": "^4.1.1"
+    "mocha": "^3.2.0"
   }
 }
