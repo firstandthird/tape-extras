@@ -8,6 +8,7 @@ module.exports = (tape, events) => {
   const callTest = (testDescription, testMethod) => {
     outstandingTestCounter++;
     async.autoInject({
+      // handle before:
       before: done => {
         if (events.before) {
           // if before hasn't been called before:
@@ -25,6 +26,7 @@ module.exports = (tape, events) => {
         }
         return done();
       },
+      // handle beforeEach:
       beforeEach: (before, done) => {
         if (events.beforeEach) {
           if (events.before) {
@@ -34,9 +36,10 @@ module.exports = (tape, events) => {
         }
         return done();
       },
-      // wrap the test to handle afterEach:
-      wrapper: (before, beforeEach, done) => {
+      // set up event listeners to handle after and afterEach:
+      registerEndings: (before, beforeEach, done) => {
         const t = tape(testDescription);
+        // set up 'after' event:
         if (events.after) {
           tape.onFinish(() => {
             outstandingTestCounter--;
@@ -57,6 +60,7 @@ module.exports = (tape, events) => {
             }
           });
         }
+        // set up 'afterEach' event:
         if (events.afterEach) {
           t.on('end', () => {
             const args = [];
@@ -76,8 +80,9 @@ module.exports = (tape, events) => {
         }
         done(null, t);
       },
-      mainTest: (wrapper, before, beforeEach, done) => {
-        const args = [wrapper];
+      // perform the actual test:
+      mainTest: (registerEndings, before, beforeEach, done) => {
+        const args = [registerEndings];
         if (events.before) {
           args.push(before);
         }
