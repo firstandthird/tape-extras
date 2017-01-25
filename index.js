@@ -3,8 +3,6 @@ const async = require('async');
 module.exports = (tape, events) => {
   let beforeCalled = false;
   let beforeResult = undefined;
-  let afterCalled = false;
-  let afterResult = undefined;
   const callTest = (testDescription, testMethod) => {
     async.autoInject({
       before: done => {
@@ -36,8 +34,8 @@ module.exports = (tape, events) => {
       // wrap the test to handle afterEach:
       wrapper: (before, beforeEach, done) => {
         const t = tape(testDescription);
-        if (events.after) {
-          tape.onFinish(() => {
+        tape.onFinish(() => {
+          if (events.after) {
             const args = [];
             if (events.before) {
               args.push(before);
@@ -50,10 +48,9 @@ module.exports = (tape, events) => {
                 throw err;
               }
             });
-            console.log(args)
             events.after.apply(this, args);
-          });
-        }
+          }
+        });
         if (events.afterEach) {
           const args = [];
           if (events.before) {

@@ -23,7 +23,7 @@ class Db {
     done();
   }
 }
-/*
+
 originalTape('wrapper for tape passes the tape assertion callback', (realT) => {
   const test = tapeExtras(require('tape'), {
     before(done) {
@@ -171,38 +171,41 @@ originalTape('wrapper for tape supports "afterEach"', (realT) => {
     realT.end();
   });
 });
-*/
+
 originalTape('wrapper for tape supports "after"', (realT) => {
+  let originalServer;
+  let calledOnce = false;
   const test = tapeExtras(require('tape'), {
     before(done) {
-      const server = new Server();
-      done(null, server);
+      originalServer = new Server();
+      done(null, originalServer);
     },
     after(server, done) {
-      console.log('after!!!')
-      console.log(server)
-      realT.equal(server.count, 0);
-      server.stop(done);
+      if (!calledOnce) {
+        realT.equal(server.count, 0, 'after only called once');
+        server.stop(done);
+      }
     }
   });
   test('calling test', (testT, server) => {
-    realT.equal(server.name, 'server');
-    realT.equal(server.count, 0, 'before should have been called and made a new server');
+    testT.equal(server.name, 'server');
+    testT.equal(server.count, 0, 'before should have been called and made a new server');
     testT.end();
   });
   test('calling test again', (testT, server) => {
-    realT.equal(server.name, 'server');
-    realT.equal(server.count, 1, 'afterEach should have stopped the server');
+    testT.equal(server.name, 'server');
+    testT.equal(server.count, 0, 'afterEach should have stopped the server');
     testT.end();
   });
   test('calling test a third time', (testT, server) => {
     realT.equal(server.name, 'server');
-    realT.equal(server.count, 2, 'afterEach should have stopped the server, again');
+    realT.equal(server.count, 0, 'afterEach should have stopped the server, again');
     testT.end();
+    calledOnce = true;
     realT.end();
   });
 });
-  // check to make sure it also works with beforeEach:
+
 //   const test2 = tapeExtras(require('tape'), {
 //     beforeEach(done) {
 //       const server = new Server();
@@ -261,20 +264,4 @@ originalTape('wrapper for tape supports "after"', (realT) => {
 //     testT.end();
 //     realT.end();
 //   });
-// });
-
-
-//     after(server, db, done) {
-//       server.stop(done);
-//     },
-
-// test2('calls before and passes result to test methods', (t, server, db) => {
-//   t.equal(t instanceof Server, true, 'before was run');
-//   t.equal(t instanceof Db, true, 'beforeEach was run');
-//   t.end();
-// });
-
-// test('this is some test 2', (t, server, db) => {
-//   t.equal(false, false, 'false is false');
-//   t.end();
 // });
