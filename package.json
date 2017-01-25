@@ -1,0 +1,30 @@
+{
+  "name": "tape-extra",
+  "version": "0.0.1",
+  "description": "adds before/after/beforeEach/afterEach handlers to tapejs",
+  "main": "index.js",
+  "scripts": {
+    "lint": "eslint .",
+    "test": "tape test/*.test.js | tap-spec"
+  },
+  "keywords": [
+    "tape",
+    "tests"
+  ],
+  "author": "Greg Allen <code@firstandthird.com> (http://firstandthird.com/)",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/firstandthird/tape-extra.git"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "async": "^2.1.4",
+    "tape": "^4.6.3"
+  },
+  "devDependencies": {
+    "eslint": "^3.9.1",
+    "eslint-config-firstandthird": "^3.0.2",
+    "eslint-plugin-import": "^2.1.0",
+    "tap-spec": "^4.1.1"
+  }
+}
