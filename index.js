@@ -1,9 +1,12 @@
+'use strict';
 const async = require('async');
 
 module.exports = (tape, events) => {
   let beforeCalled = false;
   let beforeResult = undefined;
+  let outstandingTestCounter = 0;
   const callTest = (testDescription, testMethod) => {
+    outstandingTestCounter++;
     async.autoInject({
       before: done => {
         if (events.before) {
@@ -34,8 +37,28 @@ module.exports = (tape, events) => {
       // wrap the test to handle afterEach:
       wrapper: (before, beforeEach, done) => {
         const t = tape(testDescription);
-        tape.onFinish(() => {
-          if (events.after) {
+        if (events.after) {
+          tape.onFinish(() => {
+            outstandingTestCounter--;
+            if (outstandingTestCounter === 0) {
+              const args = [];
+              if (events.before) {
+                args.push(before);
+              }
+              if (events.beforeEach) {
+                args.push(beforeEach);
+              }
+              args.push((err, results) => {
+                if (err) {
+                  throw err;
+                }
+              });
+              events.after.apply(this, args);
+            }
+          });
+        }
+        if (events.afterEach) {
+          t.on('end', () => {
             const args = [];
             if (events.before) {
               args.push(before);
@@ -43,30 +66,13 @@ module.exports = (tape, events) => {
             if (events.beforeEach) {
               args.push(beforeEach);
             }
-            args.push((err, results) => {
+            args.push((err) => {
               if (err) {
                 throw err;
               }
             });
-            events.after.apply(this, args);
-          }
-        });
-        if (events.afterEach) {
-          const args = [];
-          if (events.before) {
-            args.push(before);
-          }
-          if (events.beforeEach) {
-            args.push(beforeEach);
-          }
-          const originalEnd = t.end;
-          args.push(originalEnd);
-          t.end = (err) => {
-            if (err) {
-              return originalEnd(err);
-            }
             events.afterEach.apply(this, args);
-          };
+          });
         }
         done(null, t);
       },
