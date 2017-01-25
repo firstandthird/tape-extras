@@ -1,5 +1,7 @@
 # tape-extras
 
+[![Greenkeeper badge](https://badges.greenkeeper.io/firstandthird/tape-extras.svg)](https://greenkeeper.io/)
+
 ## Features
 
 * before
