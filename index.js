@@ -1,113 +1,110 @@
 'use strict';
 const async = require('async');
-
+const debounce = require('lodash.debounce');
 
 module.exports = (tape, events) => {
-  let beforeCalled = false;
-  let beforeResult = undefined;
-  let outstandingTestCounter = 0;
-  let callIsOutstanding = false;
-  const callTest = (testDescription, testMethod) => {
-    outstandingTestCounter++;
-    async.whilst(() => callIsOutstanding, done => setTimeout(done, 25), () => {
-      callIsOutstanding = true;
-      async.autoInject({
-        // handle before:
-        before(done) {
-          if (!events.before || beforeCalled) {
-            return done(null, beforeResult);
-          }
-          return events.before((err, result) => {
-            if (err) {
-              return done(err);
-            }
-            beforeCalled = true;
-            beforeResult = result;
-            done(null, beforeResult);
-          });
-        },
-        // handle beforeEach:
-        beforeEach(before, done) {
-          if (!events.beforeEach) {
-            return done();
-          }
-          const args = [];
-          if (events.before) {
-            args.push(before);
-          }
-          args.push(done);
-          events.beforeEach.apply(this, args);
-        },
-        // set up event listeners to handle after and afterEach:
-        registerAfter(before, beforeEach, done) {
-          if (!events.after) {
-            return done();
-          }
-          // set up 'after' event:
-          tape.onFinish(() => {
-            // 'after' only fires after the last outstanding test is deducted:
-            outstandingTestCounter--;
-            if (outstandingTestCounter === 0) {
-              // set up args and call it:
-              const args = [];
-              if (events.before) {
-                args.push(before);
-              }
-              if (events.beforeEach) {
-                args.push(beforeEach);
-              }
-              // todo: this needs to be something else:
-              args.push((err, results) => {
-                if (err) {
-                  throw err;
-                }
-              });
-              events.after.apply(this, args);
-            }
-          });
+  const testCases = [];
+  let lastBeforeEachResult;
+  // executes a single call to 'test':
+  const runOneTest = (before, testDescription, testMethod, testDone) => {
+    async.autoInject({
+      beforeEach: (done) => {
+        if (!events.beforeEach) {
           return done();
-        },
-        registerAfterEach(before, beforeEach, done) {
-          const t = tape(testDescription);
-          if (!events.afterEach) {
-            callIsOutstanding = false;
-            return done(null, t);
-          }
-          t.on('end', () => {
-            const args = [];
-            if (events.before) {
-              args.push(before);
-            }
-            if (events.beforeEach) {
-              args.push(beforeEach);
-            }
-            args.push((err) => {
-              if (err) {
-                throw err;
-              }
-              callIsOutstanding = false;
-            });
-            events.afterEach.apply(this, args);
-          });
-          done(null, t);
-        },
-        // perform the actual test:
-        mainTest(registerAfter, registerAfterEach, before, beforeEach, done) {
-          const args = [registerAfterEach];
-          if (events.before) {
+        }
+        const args = [];
+        if (before) {
+          args.push(before);
+        }
+        args.push(done);
+        events.beforeEach.apply(this, args);
+      },
+      test(done) {
+        return done(null, tape(testDescription));
+      },
+      afterEach(beforeEach, test, done) {
+        lastBeforeEachResult = beforeEach;
+        if (!events.afterEach) {
+          return done();
+        }
+        test.on('end', () => {
+          const args = [];
+          if (before) {
             args.push(before);
           }
           if (events.beforeEach) {
             args.push(beforeEach);
           }
-          return done(null, testMethod.apply(this, args));
-        },
-      }, (err) => {
-        if (err) {
-          throw err;
+          args.push((err) => {
+            if (err) {
+              throw err;
+            }
+          });
+          events.afterEach.apply(this, args);
+        });
+        done();
+      },
+      runTest: (beforeEach, test, afterEach, done) => {
+        const args = [test];
+        if (before) {
+          args.push(before);
         }
-      });
+        if (events.beforeEach) {
+          args.push(beforeEach);
+        }
+        return done(null, testMethod.apply(this, args));
+      }
+    }, (err, result) => {
+      return testDone(err, { beforeEach: result.beforeEach, test: result.test });
     });
   };
-  return callTest;
+
+  // executes all tests in series:
+  let runAllTests = () => {
+    async.autoInject({
+      before(done) {
+        if (!events.before) {
+          return done();
+        }
+        return events.before((err, result) => {
+          if (err) {
+            return done(err);
+          }
+          done(null, result);
+        });
+      },
+      tests(before, done) {
+        async.eachSeries(testCases, (testCase, testDone) => {
+          runOneTest(before, testCase.testDescription, testCase.testMethod, testDone);
+        }, done);
+      },
+      after(before, tests, done) {
+        if (!events.after) {
+          return done();
+        }
+        const args = [];
+        if (events.before) {
+          args.push(before);
+        }
+        if (events.beforeEach) {
+          args.push(lastBeforeEachResult);
+        }
+        args.push(done);
+        events.after.apply(this, args);
+      }
+    }, (err, result) => {
+      if (err) {
+        throw err;
+      }
+    });
+  };
+  // this will only trigger once 500 ms after new tests stop coming in:
+  runAllTests = debounce(runAllTests, 500, { leading: false, trailing: true } );
+
+  return (testDescription, testMethod) => {
+    // add the test to the queue:
+    testCases.push({ testDescription, testMethod });
+    // 500 ms after the last test is added, this should begin processing them in series:
+    runAllTests();
+  };
 };
