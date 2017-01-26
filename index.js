@@ -99,7 +99,7 @@ module.exports = (tape, events) => {
     });
   };
   // this will only trigger once 500 ms after new tests stop coming in:
-  runAllTests = debounce(runAllTests, 500, { leading: false, trailing: true } );
+  runAllTests = debounce(runAllTests, 500, { leading: false, trailing: true });
 
   return (testDescription, testMethod) => {
     // add the test to the queue:
