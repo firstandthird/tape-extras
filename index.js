@@ -8,6 +8,7 @@ module.exports = (tape, events) => {
   // executes a single call to 'test':
   const runOneTest = (before, testDescription, testMethod, testDone) => {
     async.autoInject({
+      // run before each:
       beforeEach: (done) => {
         if (!events.beforeEach) {
           return done();
@@ -19,9 +20,11 @@ module.exports = (tape, events) => {
         args.push(done);
         events.beforeEach.apply(this, args);
       },
+      // get the tape test instance:
       test(done) {
         return done(null, tape(testDescription));
       },
+      // register the afterEach event:
       afterEach(beforeEach, test, done) {
         lastBeforeEachResult = beforeEach;
         if (!events.afterEach) {
@@ -44,6 +47,7 @@ module.exports = (tape, events) => {
         });
         done();
       },
+      // run the actual test:
       runTest: (beforeEach, test, afterEach, done) => {
         const args = [test];
         if (before) {
@@ -62,6 +66,7 @@ module.exports = (tape, events) => {
   // executes all tests in series:
   let runAllTests = () => {
     async.autoInject({
+      // run the 'before' event handler:
       before(done) {
         if (!events.before) {
           return done();
@@ -73,11 +78,13 @@ module.exports = (tape, events) => {
           done(null, result);
         });
       },
+      // run all the tests in order:
       tests(before, done) {
         async.eachSeries(testCases, (testCase, testDone) => {
           runOneTest(before, testCase.testDescription, testCase.testMethod, testDone);
         }, done);
       },
+      // run the 'after' event handler:
       after(before, tests, done) {
         if (!events.after) {
           return done();
