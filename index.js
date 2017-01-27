@@ -103,12 +103,8 @@ module.exports = (tape, events) => {
       if (err) {
         throw err;
       }
-      // add tests to harness:
+      // over-ride test results to print the results correctly:
       const harness = tape.getHarness();
-      harness._tests.forEach((testItem) => {
-        harness._results.push(testItem);
-      });
-      // over-ride test results to print the results
       harness._results.close = function () {
         const self = this;
         if (self.closed) {
