@@ -1,8 +1,15 @@
 'use strict';
 const async = require('async');
 const debounce = require('lodash.debounce');
+// const tapSpec = require('tap-spec');
 
 module.exports = (tape, events) => {
+  // tape.createStream()
+  // .pipe(tapSpec(() => {
+  //   console.log('result')
+  // }))
+  // .pipe(process.stdout)
+
   const testCases = [];
   let lastBeforeEachResult;
   // executes a single call to 'test':
@@ -22,10 +29,17 @@ module.exports = (tape, events) => {
       },
       // get the tape test instance:
       test(done) {
-        return done(null, tape(testDescription));
+        return done(null, tape(testDescription, {
+          //  objectMode: true
+         }));
       },
       // register the afterEach event:
       afterEach(beforeEach, test, done) {
+        // console.log('======')
+        // console.log('======')
+        // console.log('======')
+        // // console.log(test)
+        // console.log(tape.getHarness())
         lastBeforeEachResult = beforeEach;
         if (!events.afterEach) {
           return done();
@@ -59,6 +73,7 @@ module.exports = (tape, events) => {
         return done(null, testMethod.apply(this, args));
       }
     }, (err, result) => {
+      // console.log(result.test)
       return testDone(err, { beforeEach: result.beforeEach, test: result.test });
     });
   };
@@ -103,6 +118,32 @@ module.exports = (tape, events) => {
       if (err) {
         throw err;
       }
+      // add tests to harness:
+      const harness = tape.getHarness();
+      harness._tests.forEach((testItem) => {
+        harness._results.push(testItem);
+      });
+      harness._results.close = function () {
+        const self = this;
+        if (self.closed) {
+           self._stream.emit('error', new Error('ALREADY CLOSED'));
+        }
+        self.closed = true;
+        const write = function (s) {
+          console.log(s);
+          self._stream.queue(s);
+        };
+        write('\n1..' + self.count + '\n');
+        write('# tests ' + self.count + '\n');
+        write('# pass  ' + self.pass + '\n');
+        if (self.fail) {
+          write('# fail  ' + self.fail + '\n');
+        }
+        else {
+          write('\n# ok\n');
+        }
+        self._stream.queue(null);
+      }.bind(harness._results);
     });
   };
   // this will only trigger once 500 ms after new tests stop coming in:
