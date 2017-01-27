@@ -1,15 +1,8 @@
 'use strict';
 const async = require('async');
 const debounce = require('lodash.debounce');
-// const tapSpec = require('tap-spec');
 
 module.exports = (tape, events) => {
-  // tape.createStream()
-  // .pipe(tapSpec(() => {
-  //   console.log('result')
-  // }))
-  // .pipe(process.stdout)
-
   const testCases = [];
   let lastBeforeEachResult;
   // executes a single call to 'test':
@@ -29,17 +22,10 @@ module.exports = (tape, events) => {
       },
       // get the tape test instance:
       test(done) {
-        return done(null, tape(testDescription, {
-          //  objectMode: true
-         }));
+        return done(null, tape(testDescription));
       },
       // register the afterEach event:
       afterEach(beforeEach, test, done) {
-        // console.log('======')
-        // console.log('======')
-        // console.log('======')
-        // // console.log(test)
-        // console.log(tape.getHarness())
         lastBeforeEachResult = beforeEach;
         if (!events.afterEach) {
           return done();
@@ -73,7 +59,6 @@ module.exports = (tape, events) => {
         return done(null, testMethod.apply(this, args));
       }
     }, (err, result) => {
-      // console.log(result.test)
       return testDone(err, { beforeEach: result.beforeEach, test: result.test });
     });
   };
@@ -123,6 +108,7 @@ module.exports = (tape, events) => {
       harness._tests.forEach((testItem) => {
         harness._results.push(testItem);
       });
+      // over-ride test results to print the results
       harness._results.close = function () {
         const self = this;
         if (self.closed) {
