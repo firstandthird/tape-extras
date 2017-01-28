@@ -1,6 +1,6 @@
 {
   "name": "tape-extras",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "adds before/after/beforeEach/afterEach handlers to tapejs",
   "main": "index.js",
   "scripts": {
