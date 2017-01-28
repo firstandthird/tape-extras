@@ -18,10 +18,11 @@
   },
   "license": "MIT",
   "dependencies": {
-    "async": "^2.1.4"
+    "async": "^2.1.4",
+    "lodash.debounce": "^4.0.8"
   },
   "eslintConfig": {
-      "extends": "firstandthird"
+    "extends": "firstandthird"
   },
   "devDependencies": {
     "chai": "^3.5.0",

@@ -1,76 +1,38 @@
 'use strict';
 const async = require('async');
+const debounce = require('lodash.debounce');
 
 module.exports = (tape, events) => {
-  let beforeCalled = false;
-  let beforeResult = undefined;
-  let outstandingTestCounter = 0;
-  const callTest = (testDescription, testMethod) => {
-    outstandingTestCounter++;
+  const testCases = [];
+  let lastBeforeEachResult;
+  // executes a single call to 'test':
+  const runOneTest = (before, testDescription, testMethod, testDone) => {
     async.autoInject({
-      // handle before:
-      before(done) {
-        if (!events.before || beforeCalled) {
-          return done(null, beforeResult);
-        }
-        return events.before((err, result) => {
-          if (err) {
-            return done(err);
-          }
-          beforeCalled = true;
-          beforeResult = result;
-          done(null, beforeResult);
-        });
-      },
-      // handle beforeEach:
-      beforeEach(before, done) {
+      // run before each:
+      beforeEach: (done) => {
         if (!events.beforeEach) {
           return done();
         }
         const args = [];
-        if (events.before) {
+        if (before) {
           args.push(before);
         }
         args.push(done);
         events.beforeEach.apply(this, args);
       },
-      // set up event listeners to handle after and afterEach:
-      registerAfter(before, beforeEach, done) {
-        if (!events.after) {
+      // get the tape test instance:
+      test(done) {
+        return done(null, tape(testDescription));
+      },
+      // register the afterEach event:
+      afterEach(beforeEach, test, done) {
+        lastBeforeEachResult = beforeEach;
+        if (!events.afterEach) {
           return done();
         }
-        // set up 'after' event:
-        tape.onFinish(() => {
-          // 'after' only fires after the last outstanding test is deducted:
-          outstandingTestCounter--;
-          if (outstandingTestCounter === 0) {
-            // set up args and call it:
-            const args = [];
-            if (events.before) {
-              args.push(before);
-            }
-            if (events.beforeEach) {
-              args.push(beforeEach);
-            }
-            args.push((err, results) => {
-              if (err) {
-                throw err;
-              }
-            });
-            events.after.apply(this, args);
-          }
-        });
-        return done();
-      },
-      registerAfterEach(before, beforeEach, done) {
-        const t = tape(testDescription);
-        // set up 'afterEach' event:
-        if (!events.afterEach) {
-          return done(null, t);
-        }
-        t.on('end', () => {
+        test.on('end', () => {
           const args = [];
-          if (events.before) {
+          if (before) {
             args.push(before);
           }
           if (events.beforeEach) {
@@ -83,24 +45,96 @@ module.exports = (tape, events) => {
           });
           events.afterEach.apply(this, args);
         });
-        done(null, t);
+        done();
       },
-      // perform the actual test:
-      mainTest(registerAfter, registerAfterEach, before, beforeEach, done) {
-        const args = [registerAfterEach];
-        if (events.before) {
+      // run the actual test:
+      runTest: (beforeEach, test, afterEach, done) => {
+        const args = [test];
+        if (before) {
           args.push(before);
         }
         if (events.beforeEach) {
           args.push(beforeEach);
         }
         return done(null, testMethod.apply(this, args));
+      }
+    }, (err, result) => {
+      return testDone(err, { beforeEach: result.beforeEach, test: result.test });
+    });
+  };
+
+  // executes all tests in series:
+  let runAllTests = () => {
+    async.autoInject({
+      // run the 'before' event handler:
+      before(done) {
+        if (!events.before) {
+          return done();
+        }
+        return events.before((err, result) => {
+          if (err) {
+            return done(err);
+          }
+          done(null, result);
+        });
       },
-    }, (err) => {
+      // run all the tests in order:
+      tests(before, done) {
+        async.eachSeries(testCases, (testCase, testDone) => {
+          runOneTest(before, testCase.testDescription, testCase.testMethod, testDone);
+        }, done);
+      },
+      // run the 'after' event handler:
+      after(before, tests, done) {
+        if (!events.after) {
+          return done();
+        }
+        const args = [];
+        if (events.before) {
+          args.push(before);
+        }
+        if (events.beforeEach) {
+          args.push(lastBeforeEachResult);
+        }
+        args.push(done);
+        events.after.apply(this, args);
+      }
+    }, (err, result) => {
       if (err) {
         throw err;
       }
+      // over-ride test results to print the results correctly:
+      const harness = tape.getHarness();
+      harness._results.close = function () {
+        const self = this;
+        if (self.closed) {
+           self._stream.emit('error', new Error('ALREADY CLOSED'));
+        }
+        self.closed = true;
+        const write = function (s) {
+          console.log(s);
+          self._stream.queue(s);
+        };
+        write('\n1..' + self.count + '\n');
+        write('# tests ' + self.count + '\n');
+        write('# pass  ' + self.pass + '\n');
+        if (self.fail) {
+          write('# fail  ' + self.fail + '\n');
+        }
+        else {
+          write('\n# ok\n');
+        }
+        self._stream.queue(null);
+      }.bind(harness._results);
     });
   };
-  return callTest;
+  // this will only trigger once 500 ms after new tests stop coming in:
+  runAllTests = debounce(runAllTests, 500, { leading: false, trailing: true });
+
+  return (testDescription, testMethod) => {
+    // add the test to the queue:
+    testCases.push({ testDescription, testMethod });
+    // 500 ms after the last test is added, this should begin processing them in series:
+    runAllTests();
+  };
 };
